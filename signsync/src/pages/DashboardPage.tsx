@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import Sidebar from "@/components/dashboard/Sidebar";
 import TopNavbar from "@/components/dashboard/TopNavbar";
 import StatusCard from "@/components/dashboard/StatusCard";
@@ -11,28 +12,37 @@ export default function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="flex min-h-screen bg-beige-50">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNavbar onMenuClick={() => setIsSidebarOpen(true)} />
 
-        <main id="overview" className="flex-1 px-6 py-8 sm:px-8">
+        <motion.main
+          id="overview"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="flex-1 px-6 py-8 sm:px-8"
+        >
+          {/* Status cards */}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {statusMetrics.map((metric) => (
-              <StatusCard key={metric.id} metric={metric} />
+            {statusMetrics.map((metric, index) => (
+              <StatusCard key={metric.id} metric={metric} index={index} />
             ))}
           </div>
 
+          {/* Primary grid */}
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
             <CameraPanel />
             <GestureOutputPanel />
           </div>
 
+          {/* Activity */}
           <div className="mt-6">
             <ActivityHistory />
           </div>
-        </main>
+        </motion.main>
       </div>
     </div>
   );

@@ -8,9 +8,9 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const toneStyles: Record<BadgeTone, string> = {
-  blue: "bg-signal-50 text-signal-600",
-  mint: "bg-mint-400/10 text-mint-500",
-  coral: "bg-coral-500/10 text-coral-600",
+  blue:    "bg-signal-50 text-signal-600",
+  mint:    "bg-mint-400/10 text-mint-500",
+  coral:   "bg-coral-500/10 text-coral-600",
   neutral: "bg-ink-900/5 text-ink-600",
 };
 

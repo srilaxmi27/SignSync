@@ -1,15 +1,19 @@
-import { ButtonHTMLAttributes, forwardRef } from "react";
-import { Loader2 } from "lucide-react";
+import { ButtonHTMLAttributes, ReactNode, forwardRef } from "react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import LoadingSpinner from "./LoadingSpinner";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "outline";
-type ButtonSize = "sm" | "md" | "lg";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "icon";
+type ButtonSize    = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
+  variant?:   ButtonVariant;
+  size?:      ButtonSize;
   isLoading?: boolean;
   fullWidth?: boolean;
+  glow?:      boolean;
+  leftIcon?:  ReactNode;
+  rightIcon?: ReactNode;
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
@@ -17,9 +21,12 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-signal-500 text-white hover:bg-signal-600 active:bg-signal-700 shadow-soft",
   secondary:
     "bg-white text-signal-600 border border-signal-200 hover:bg-signal-50",
-  ghost: "bg-transparent text-ink-700 hover:bg-ink-900/5",
+  ghost:
+    "bg-transparent text-ink-700 hover:bg-ink-900/5",
   outline:
     "bg-transparent text-white border-2 border-white/70 hover:bg-white/10",
+  icon:
+    "bg-ink-900/5 text-ink-700 hover:bg-signal-50 hover:text-signal-600 rounded-full",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -35,6 +42,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       size = "md",
       isLoading = false,
       fullWidth = false,
+      glow = false,
+      leftIcon,
+      rightIcon,
       disabled,
       className,
       children,
@@ -42,24 +52,40 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
+    const resolvedVariant = (["primary","secondary","ghost","outline","icon"] as ButtonVariant[]).includes(variant)
+      ? variant
+      : "primary";
+
     return (
-      <button
+      <motion.button
         ref={ref}
         disabled={disabled || isLoading}
+        whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
+        whileTap={{ scale: disabled || isLoading ? 1 : 0.97 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
         className={cn(
           "inline-flex items-center justify-center font-display font-semibold transition-all duration-200",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-400 focus-visible:ring-offset-2",
           "disabled:opacity-50 disabled:cursor-not-allowed",
-          variantStyles[variant],
+          variantStyles[resolvedVariant],
           sizeStyles[size],
+          glow && resolvedVariant === "primary" && "shadow-glow-signal",
           fullWidth && "w-full",
           className
         )}
-        {...rest}
+        {...(rest as React.ComponentProps<typeof motion.button>)}
       >
-        {isLoading && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
+        {isLoading ? (
+          <LoadingSpinner
+            size={size === "lg" ? "md" : "sm"}
+            color={resolvedVariant === "primary" ? "white" : "primary"}
+          />
+        ) : (
+          leftIcon
+        )}
         {children}
-      </button>
+        {!isLoading && rightIcon}
+      </motion.button>
     );
   }
 );

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Hero from "@/components/landing/Hero";
@@ -8,7 +9,12 @@ import CTA from "@/components/landing/CTA";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-paper">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="min-h-screen bg-paper"
+    >
       <Navbar />
       <main>
         <Hero />
@@ -18,6 +24,6 @@ export default function LandingPage() {
         <CTA />
       </main>
       <Footer />
-    </div>
+    </motion.div>
   );
 }

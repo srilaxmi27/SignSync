@@ -19,7 +19,7 @@ const footerColumns = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-ink-900/5 bg-white">
+    <footer className="border-t border-ink-900/5 bg-beige-50">
       <Container className="grid gap-12 py-16 lg:grid-cols-[1.2fr_2fr]">
         <div className="flex flex-col gap-4">
           <Logo />
@@ -68,12 +68,8 @@ export default function Footer() {
         <Container className="flex flex-col items-center justify-between gap-3 text-sm text-ink-400 sm:flex-row">
           <p>&copy; {new Date().getFullYear()} SignSync. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-signal-600">
-              Privacy
-            </a>
-            <a href="#" className="hover:text-signal-600">
-              Terms
-            </a>
+            <a href="#" className="hover:text-signal-600 transition-colors">Privacy</a>
+            <a href="#" className="hover:text-signal-600 transition-colors">Terms</a>
           </div>
         </Container>
       </div>

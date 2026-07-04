@@ -8,14 +8,14 @@ import { NavLink } from "@/types";
 import { cn } from "@/lib/utils";
 
 const navLinks: NavLink[] = [
-  { label: "Features", href: "#features" },
+  { label: "Features",    href: "#features" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "About", href: "#about" },
+  { label: "About",       href: "#about" },
 ];
 
 export default function Navbar() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled]   = useState(false);
+  const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,9 +35,10 @@ export default function Navbar() {
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
         isScrolled
-          ? "bg-white/90 backdrop-blur-md shadow-card border-b border-ink-900/5"
+          ? "bg-white/92 backdrop-blur-md shadow-card border-b border-ink-900/5"
           : "bg-transparent"
       )}
+      style={!isScrolled ? { backgroundColor: "transparent" } : undefined}
     >
       <nav className="section-container flex h-20 items-center justify-between">
         <Logo />
@@ -47,9 +48,10 @@ export default function Navbar() {
             <button
               key={link.href}
               onClick={() => handleNavClick(link.href)}
-              className="text-sm font-semibold text-ink-600 transition-colors hover:text-signal-600"
+              className="text-sm font-semibold text-ink-600 transition-colors hover:text-signal-600 relative group"
             >
               {link.label}
+              <span className="absolute -bottom-0.5 left-0 h-0.5 w-0 bg-signal-500 transition-all duration-200 group-hover:w-full rounded-full" />
             </button>
           ))}
         </div>
@@ -80,14 +82,14 @@ export default function Navbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden border-t border-ink-900/5 bg-white lg:hidden"
+            className="overflow-hidden border-t border-ink-900/5 bg-white/95 backdrop-blur-md lg:hidden"
           >
             <div className="section-container flex flex-col gap-1 py-4">
               {navLinks.map((link) => (
                 <button
                   key={link.href}
                   onClick={() => handleNavClick(link.href)}
-                  className="rounded-xl px-3 py-3 text-left text-base font-semibold text-ink-700 hover:bg-signal-50"
+                  className="rounded-xl px-3 py-3 text-left text-base font-semibold text-ink-700 hover:bg-signal-50 hover:text-signal-600 transition-colors"
                 >
                   {link.label}
                 </button>

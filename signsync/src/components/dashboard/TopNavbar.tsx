@@ -1,53 +1,139 @@
-import { Bell, Menu, Search } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface TopNavbarProps {
   onMenuClick: () => void;
 }
 
+function getGreeting(name?: string): string {
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  return name ? `${greeting}, ${name.split(" ")[0]}` : greeting;
+}
+
 export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [searchFocused, setSearchFocused]     = useState(false);
+  const [dropdownOpen, setDropdownOpen]       = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-ink-900/5 bg-white/80 px-6 backdrop-blur-md sm:px-8">
+    <header className="sticky top-0 z-30 flex h-18 items-center justify-between border-b border-white/5 bg-signal-700/80 px-6 backdrop-blur-xl sm:px-8" style={{ height: "4.5rem" }}>
+      {/* Left */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded-lg p-2 text-ink-600 hover:bg-ink-900/5 lg:hidden"
+          className="rounded-lg p-2 text-white/60 hover:bg-white/5 hover:text-white lg:hidden transition-colors"
           aria-label="Open sidebar"
         >
-          <Menu className="h-5.5 w-5.5" />
+          <Menu className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-lg font-bold text-ink-900 sm:text-xl">
-            Welcome back{user ? `, ${user.name}` : ""}
+          <h1 className="text-base font-bold text-white sm:text-lg">
+            {getGreeting(user?.name ?? "")}
           </h1>
-          <p className="text-sm text-ink-500">
-            Here's what's happening with your translations today.
+          <p className="text-xs text-white/40">
+            Here's your translation activity for today.
           </p>
         </div>
       </div>
 
+      {/* Right */}
       <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 rounded-xl bg-ink-900/5 px-3 py-2 sm:flex">
-          <Search className="h-4 w-4 text-ink-400" />
+        {/* Search */}
+        <motion.div
+          layout
+          className="hidden items-center gap-2 overflow-hidden rounded-xl border border-white/10 bg-white/5 px-3 py-2 sm:flex"
+          animate={{ width: searchFocused ? 220 : 160 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        >
+          <Search className="h-4 w-4 shrink-0 text-white/40" />
           <input
             type="text"
             placeholder="Search sessions"
-            className="w-40 bg-transparent text-sm text-ink-700 placeholder:text-ink-400 focus:outline-none"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            className="w-full bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none"
           />
-        </div>
+        </motion.div>
 
+        {/* Notification bell */}
         <button
-          className="relative rounded-xl p-2.5 text-ink-600 hover:bg-ink-900/5"
+          className="relative rounded-xl p-2.5 text-white/60 hover:bg-white/5 hover:text-white transition-colors"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-coral-500" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-coral-500 ring-2 ring-signal-900" />
         </button>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-signal-500 text-sm font-bold text-white">
-          {user?.avatarInitials ?? "SS"}
+        {/* Avatar + dropdown */}
+        <div ref={dropdownRef} className="relative">
+          <button
+            onClick={() => setDropdownOpen((p) => !p)}
+            className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-white/5 transition-colors"
+            aria-label="User menu"
+            aria-expanded={dropdownOpen}
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-signal-400 to-signal-600 text-sm font-bold text-white shadow-glow-signal">
+              {user?.avatarInitials ?? "SS"}
+            </div>
+            <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          <AnimatePresence>
+            {dropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl2 border border-white/10 bg-signal-700 shadow-elevated"
+              >
+                {user && (
+                  <div className="border-b border-white/5 px-4 py-3">
+                    <p className="text-sm font-semibold text-white">{user.name}</p>
+                    <p className="text-xs text-white/40 truncate">{user.email}</p>
+                  </div>
+                )}
+                <div className="p-1">
+                  {[
+                    { icon: User,     label: "Profile" },
+                    { icon: Settings, label: "Settings" },
+                  ].map(({ icon: Icon, label }) => (
+                    <button
+                      key={label}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                  <div className="my-1 border-t border-white/5" />
+                  <button
+                    onClick={logout}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-coral-400 hover:bg-white/5 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log out
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </header>
