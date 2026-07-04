@@ -1,9 +1,7 @@
 """
 SignSync Backend entry point.
 
-Configures the FastAPI application: CORS, logging, exception handlers, and
-route registration. Run with:
-
+Run with:
     uvicorn main:app --reload --port 8000
 """
 
@@ -14,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import gesture, speech, system, websocket
+from app.api import sessions, profile
 from app.core.config import get_settings
 from app.core.exceptions import (
     ServiceError,
@@ -49,6 +48,8 @@ app.include_router(system.router)
 app.include_router(gesture.router)
 app.include_router(speech.router)
 app.include_router(websocket.router)
+app.include_router(sessions.router)
+app.include_router(profile.router)
 
 
 @app.on_event("startup")

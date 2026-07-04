@@ -113,7 +113,11 @@ export default function LoginPage() {
             />
             Remember me
           </label>
-          <a href="#" className="text-sm font-semibold text-signal-600 hover:text-signal-700">
+          <a
+            href="#"
+            onClick={(e) => e.preventDefault()}
+            className="text-sm font-semibold text-signal-600 hover:text-signal-700"
+          >
             Forgot password?
           </a>
         </div>

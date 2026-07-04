@@ -8,6 +8,7 @@ import {
   LogOut,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Logo from "@/components/ui/Logo";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -21,8 +22,8 @@ const navItems = [
   { label: "Overview",         icon: LayoutDashboard, href: "#overview" },
   { label: "Live translation", icon: Camera,           href: "#camera" },
   { label: "Activity history", icon: History,          href: "#activity" },
-  { label: "Settings",         icon: Settings,         href: "#settings" },
-  { label: "Help & support",   icon: HelpCircle,       href: "#help" },
+  { label: "Settings",         icon: Settings,         href: null },
+  { label: "Help & support",   icon: HelpCircle,       href: null },
 ];
 
 const drawerVariants = {
@@ -42,6 +43,12 @@ const itemVariants = {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   const SidebarContent = ({ animate }: { animate?: boolean }) => (
     <div className="flex h-full flex-col bg-signal-700">
@@ -90,7 +97,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
         )}
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-coral-400 transition-colors hover:bg-white/5"
         >
           <LogOut className="h-5 w-5" />
@@ -141,16 +148,32 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 }
 
 function NavItem({ item, Icon }: { item: (typeof navItems)[0]; Icon: typeof LayoutDashboard }) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (!item.href) return; // no-op for items without a target section
+    e.preventDefault();
+    const el = document.querySelector(item.href);
+    el?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <a
-      href={item.href}
+      href={item.href ?? "#"}
+      onClick={handleClick}
+      title={!item.href ? "Coming soon" : undefined}
       className={cn(
         "group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150",
-        "text-white/60 hover:bg-white/5 hover:text-white"
+        item.href
+          ? "text-white/60 hover:bg-white/5 hover:text-white"
+          : "cursor-default text-white/30"
       )}
     >
       <Icon className="h-5 w-5 shrink-0 transition-colors" />
       {item.label}
+      {!item.href && (
+        <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/40">
+          Soon
+        </span>
+      )}
     </a>
   );
 }

@@ -7,95 +7,84 @@ import {
   useMemo,
   useState,
 } from "react";
+import { Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 import { AuthContextValue, User } from "@/types";
 import { getInitials } from "@/lib/utils";
 
-const STORAGE_KEY = "signsync.auth.user";
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function supabaseUserToAppUser(session: Session): User {
+  const meta = session.user.user_metadata as Record<string, string> | undefined;
+  const name = meta?.name ?? session.user.email?.split("@")[0] ?? "User";
+  return {
+    id:               session.user.id,
+    name,
+    email:            session.user.email ?? "",
+    avatarInitials:   getInitials(name),
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [user,        setUser]        = useState<User | null>(null);
+  const [isHydrated,  setIsHydrated]  = useState(false);
 
+  // ── Hydrate from existing Supabase session on mount ──────────────────────
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored) as User);
-      } catch {
-        window.localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-    setIsHydrated(true);
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setUser(supabaseUserToAppUser(data.session));
+      setIsHydrated(true);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session ? supabaseUserToAppUser(session) : null);
+    });
+
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  const persist = useCallback((nextUser: User | null) => {
-    if (nextUser) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+  // ── login ─────────────────────────────────────────────────────────────────
+  const login = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    if (data.session) setUser(supabaseUserToAppUser(data.session));
   }, []);
 
-  const login = useCallback(
-    async (email: string, _password: string) => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const name = email.split("@")[0].replace(/[._]/g, " ");
-      const nextUser: User = {
-        id: crypto.randomUUID(),
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        email,
-        avatarInitials: getInitials(name || "SignSync User"),
-      };
-      setUser(nextUser);
-      persist(nextUser);
-    },
-    [persist]
-  );
+  // ── register ──────────────────────────────────────────────────────────────
+  const register = useCallback(async (name: string, email: string, password: string): Promise<boolean> => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
+    if (error) throw new Error(error.message);
+    if (data.session) {
+      // Auto-confirmed — user is immediately logged in
+      setUser(supabaseUserToAppUser(data.session));
+      return false; // no confirmation needed
+    }
+    // Email confirmation required — session is null
+    return true;
+  }, []);
 
-  const register = useCallback(
-    async (name: string, email: string, _password: string) => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      const nextUser: User = {
-        id: crypto.randomUUID(),
-        name,
-        email,
-        avatarInitials: getInitials(name),
-      };
-      setUser(nextUser);
-      persist(nextUser);
-    },
-    [persist]
-  );
-
-  const logout = useCallback(() => {
+  // ── logout ────────────────────────────────────────────────────────────────
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    persist(null);
-  }, [persist]);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      isAuthenticated: Boolean(user),
-      login,
-      register,
-      logout,
-    }),
+    () => ({ user, isAuthenticated: Boolean(user), login, register, logout }),
     [user, login, register, logout]
   );
 
-  if (!isHydrated) {
-    return null;
-  }
+  if (!isHydrated) return null;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 }

@@ -9,8 +9,8 @@ export interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
+  logout: () => void | Promise<void>;
 }
 
 export type SessionStatus = "idle" | "listening" | "translating";

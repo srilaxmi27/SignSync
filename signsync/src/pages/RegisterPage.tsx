@@ -29,6 +29,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [confirmSent, setConfirmSent] = useState(false);
 
   const strength = getPasswordStrength(password);
   const strengthColors = ["bg-ink-300", "bg-coral-500", "bg-coral-400", "bg-signal-400", "bg-mint-500"];
@@ -65,10 +66,17 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     try {
-      await register(name, email, password);
-      navigate("/dashboard", { replace: true });
-    } catch {
-      setFormError("We couldn't create your account. Please try again.");
+      const needsConfirmation = await register(name, email, password);
+      if (needsConfirmation) {
+        // Supabase sent a confirmation email — show a message instead of navigating
+        setFormError(""); 
+        setConfirmSent(true);
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "We couldn't create your account.";
+      setFormError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -84,6 +92,21 @@ export default function RegisterPage() {
         "Cancel or upgrade any time",
       ]}
     >
+      {confirmSent ? (
+        <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-signal-50">
+            <Mail className="h-8 w-8 text-signal-600" />
+          </div>
+          <h2 className="text-xl font-bold text-ink-900">Check your email</h2>
+          <p className="text-sm leading-relaxed text-ink-500">
+            We sent a confirmation link to <strong>{email}</strong>.
+            Click it to activate your account, then come back to log in.
+          </p>
+          <Link to="/login" className="mt-2 text-sm font-semibold text-signal-600 hover:text-signal-700">
+            Go to login →
+          </Link>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <Input
           label="Full name"
@@ -202,6 +225,7 @@ export default function RegisterPage() {
           Log in
         </Link>
       </p>
+      )}
     </AuthLayout>
   );
 }

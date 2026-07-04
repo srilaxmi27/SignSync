@@ -88,8 +88,9 @@ export default function Hero() {
               variant="outline"
               size="lg"
               className="border-2 border-ink-900/25 bg-white/40 text-ink-800 hover:bg-white/60"
+              onClick={() => document.querySelector("#features")?.scrollIntoView({ behavior: "smooth" })}
             >
-              Watch demo
+              See how it works
             </Button>
           </div>
 

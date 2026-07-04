@@ -46,7 +46,7 @@ export default function CTA() {
               <Button
                 variant="primary"
                 size="lg"
-                className="text-signal-700 hover:bg-signal-50"
+                className="bg-white text-signal-700 hover:bg-signal-50"
                 onClick={() => navigate("/register")}
                 rightIcon={<ArrowRight className="h-5 w-5" />}
               >
