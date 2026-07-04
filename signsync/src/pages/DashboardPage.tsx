@@ -5,10 +5,16 @@ import TopNavbar from "@/components/dashboard/TopNavbar";
 import StatusCard from "@/components/dashboard/StatusCard";
 import CameraPanel from "@/components/dashboard/CameraPanel";
 import GestureOutputPanel from "@/components/dashboard/GestureOutputPanel";
+import GesturePredictionPanel from "@/components/dashboard/GesturePredictionPanel";
 import ActivityHistory from "@/components/dashboard/ActivityHistory";
+import DatasetPanel from "@/components/dashboard/DatasetPanel";
 import { useAuth } from "@/context/AuthContext";
 import { loadStats, recordSessionStart, recordSessionEnd, type SessionStats } from "@/store/sessionStore";
 import { type StatusMetric } from "@/types";
+import type { FeatureVector } from "@/lib/featureGenerator";
+import { useGesturePrediction } from "@/hooks/useGesturePrediction";
+import GestureTextPanel from "@/components/dashboard/GestureTextPanel";
+import { useGestureText }        from "@/hooks/useGestureText";
 
 // ─── Live stats → StatusMetric shape ─────────────────────────────────────────
 
@@ -73,8 +79,18 @@ export default function DashboardPage() {
     user ? loadStats(user.id) : { sessionsToday: 0, minutesTotal: 0, sessionDate: "" }
   );
   const [sessionActive,   setSessionActive]   = useState(false);
-  const [elapsedSeconds,  setElapsedSeconds]  = useState(0);  // live session timer
+  const [elapsedSeconds,  setElapsedSeconds]  = useState(0);
   const [sessionStartAt,  setSessionStartAt]  = useState<number | null>(null);
+  const [featureVector,   setFeatureVector]   = useState<FeatureVector | null>(null);
+
+  // ── Gesture prediction (RF model, in-browser) ─────────────────────────────
+  const prediction = useGesturePrediction(featureVector, {
+    threshold:  0.55,
+    windowSize: 10,
+  });
+
+  // ── Gesture → Text (sentence generation with flicker suppression) ─────────
+  const gestureText = useGestureText(prediction, 0.55);
 
   // Reload stats from storage on mount (handles page refresh)
   useEffect(() => {
@@ -141,8 +157,28 @@ export default function DashboardPage() {
               onSessionStart={handleSessionStart}
               onSessionStop={handleSessionStop}
               sessionElapsed={elapsedSeconds}
+              onFeatureVector={setFeatureVector}
             />
-            <GestureOutputPanel />
+            <div className="flex flex-col gap-6">
+              {/* Live gesture prediction — model output */}
+              <GesturePredictionPanel
+                prediction={prediction}
+                sessionActive={sessionActive}
+              />
+              {/* Gesture → Text translation */}
+              <GestureTextPanel
+                gestureText={gestureText}
+                prediction={prediction}
+                sessionActive={sessionActive}
+              />
+              {/* Gesture output log */}
+              <GestureOutputPanel />
+              {/* Dataset collection (dev tool) */}
+              <DatasetPanel
+                featureVector={featureVector}
+                sessionActive={sessionActive}
+              />
+            </div>
           </div>
 
           {/* Activity */}

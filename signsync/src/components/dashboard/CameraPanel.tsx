@@ -18,6 +18,8 @@ import Button from "@/components/ui/Button";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { SessionStatus } from "@/types";
 import { useMediaPipe } from "@/hooks/useMediaPipe";
+import { useLandmarkPipeline } from "@/hooks/useLandmarkPipeline";
+import DevPanel from "@/components/dashboard/DevPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,13 +59,15 @@ const statusMap: Record<SessionStatus, { status: "live" | "idle"; label: string 
 interface CameraPanelProps {
   onSessionStart?: () => void;
   onSessionStop?:  () => void;
-  sessionElapsed?: number;   // live elapsed seconds from parent
+  sessionElapsed?: number;
+  onFeatureVector?: (fv: import("@/lib/featureGenerator").FeatureVector | null) => void;
 }
 
 export default function CameraPanel({
   onSessionStart,
   onSessionStop,
   sessionElapsed = 0,
+  onFeatureVector,
 }: CameraPanelProps) {
   const videoRef        = useRef<HTMLVideoElement>(null);
   const canvasRef       = useRef<HTMLCanvasElement>(null);   // MediaPipe overlay
@@ -90,9 +94,18 @@ export default function CameraPanel({
     handCount,
     fps,
     detected,
+    lastFrame,
     start:     mpStart,
     stop:      mpStop,
   } = useMediaPipe(videoRef, canvasRef);
+
+  // ── Landmark pipeline (processor + feature generator) ────────────────────
+  const { stats: pipelineStats, featureVector } = useLandmarkPipeline(lastFrame);
+
+  // Propagate latest feature vector to parent (for DatasetPanel)
+  useEffect(() => {
+    onFeatureVector?.(featureVector);
+  }, [featureVector, onFeatureVector]);
 
   // ── Start camera ──────────────────────────────────────────────────────────
   const startCamera = useCallback(async () => {
@@ -364,6 +377,9 @@ export default function CameraPanel({
               </div>
             </div>
           )}
+
+          {/* Dev panel — landmark pipeline stats */}
+          <DevPanel enabled={isActive} stats={pipelineStats} fps={fps} />
         </div>
 
         {/* ── Controls ──────────────────────────────────────────────────── */}
