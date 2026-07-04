@@ -10,3 +10,8 @@ supabase==2.5.3
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
+
+# MediaPipe hand detection
+mediapipe==0.10.35
+opencv-python-headless==4.10.0.84
+# numpy is installed as a mediapipe dependency

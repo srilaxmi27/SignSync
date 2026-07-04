@@ -21,7 +21,9 @@ def _get_client() -> Client:
             "SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in your .env file. "
             "See .env.example for instructions."
         )
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+    # Strip any trailing path segments — the client needs just the base URL
+    base_url = settings.SUPABASE_URL.split("/rest/")[0].rstrip("/")
+    return create_client(base_url, settings.SUPABASE_SERVICE_KEY)
 
 
 def get_db() -> Client:

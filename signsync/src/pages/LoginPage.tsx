@@ -5,6 +5,7 @@ import AuthLayout from "@/components/auth/AuthLayout";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { isValidEmail } from "@/lib/utils";
 
 interface FormErrors {
@@ -17,25 +18,21 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors,       setErrors]       = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [formError,    setFormError]    = useState("");
+  const [resetSent,    setResetSent]    = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {};
-    if (!email) {
-      nextErrors.email = "Email is required";
-    } else if (!isValidEmail(email)) {
-      nextErrors.email = "Enter a valid email address";
-    }
-    if (!password) {
-      nextErrors.password = "Password is required";
-    } else if (password.length < 6) {
-      nextErrors.password = "Password must be at least 6 characters";
-    }
+    if (!email)                    nextErrors.email    = "Email is required";
+    else if (!isValidEmail(email)) nextErrors.email    = "Enter a valid email address";
+    if (!password)                 nextErrors.password = "Password is required";
+    else if (password.length < 6)  nextErrors.password = "Password must be at least 6 characters";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -48,13 +45,40 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      const redirectTo =
-        (location.state as { from?: string } | null)?.from ?? "/dashboard";
+      const redirectTo = (location.state as { from?: string } | null)?.from ?? "/dashboard";
       navigate(redirectTo, { replace: true });
-    } catch {
-      setFormError("We couldn't log you in. Please try again.");
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : "Unknown error";
+      // Map Supabase error messages to friendly copy
+      if (raw.toLowerCase().includes("invalid login") || raw.toLowerCase().includes("invalid credentials")) {
+        setFormError("Incorrect email or password. Please try again.");
+      } else if (raw.toLowerCase().includes("email not confirmed")) {
+        setFormError("Please confirm your email address before logging in. Check your inbox.");
+      } else if (raw.toLowerCase().includes("too many requests")) {
+        setFormError("Too many login attempts. Please wait a moment and try again.");
+      } else {
+        setFormError(raw);
+      }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email || !isValidEmail(email)) {
+      setErrors((e) => ({ ...e, email: "Enter your email above first" }));
+      return;
+    }
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetLoading(false);
+    if (error) {
+      setFormError(error.message);
+    } else {
+      setResetSent(true);
+      setFormError("");
     }
   };
 
@@ -74,9 +98,9 @@ export default function LoginPage() {
           type="email"
           placeholder="you@example.com"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           error={errors.email}
-          icon={<Mail className="h-4.5 w-4.5" />}
+          icon={<Mail className="h-4 w-4" />}
           autoComplete="email"
         />
 
@@ -85,45 +109,48 @@ export default function LoginPage() {
           type={showPassword ? "text" : "password"}
           placeholder="Enter your password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           error={errors.password}
-          icon={<Lock className="h-4.5 w-4.5" />}
+          icon={<Lock className="h-4 w-4" />}
           autoComplete="current-password"
           trailingAction={
             <button
               type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="text-ink-400 hover:text-ink-600"
+              onClick={() => setShowPassword((p) => !p)}
+              className="text-ink-400 hover:text-ink-600 transition-colors"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <EyeOff className="h-4.5 w-4.5" />
-              ) : (
-                <Eye className="h-4.5 w-4.5" />
-              )}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           }
         />
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-sm text-ink-600">
+          <label className="flex items-center gap-2 text-sm text-ink-600 cursor-pointer">
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-ink-900/20 text-signal-500 focus:ring-signal-400"
             />
             Remember me
           </label>
-          <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            className="text-sm font-semibold text-signal-600 hover:text-signal-700"
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetLoading}
+            className="text-sm font-semibold text-signal-600 hover:text-signal-700 transition-colors disabled:opacity-50"
           >
-            Forgot password?
-          </a>
+            {resetLoading ? "Sending…" : "Forgot password?"}
+          </button>
         </div>
 
+        {resetSent && (
+          <p className="rounded-xl bg-signal-50 px-4 py-3 text-sm font-medium text-signal-700">
+            Password reset email sent to <strong>{email}</strong>. Check your inbox.
+          </p>
+        )}
+
         {formError && (
-          <p role="alert" className="text-sm font-medium text-coral-600">
+          <p role="alert" className="rounded-xl bg-coral-500/8 px-4 py-3 text-sm font-medium text-coral-600">
             {formError}
           </p>
         )}

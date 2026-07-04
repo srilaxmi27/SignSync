@@ -1,12 +1,16 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquareText } from "lucide-react";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
-import { recognizedGestures } from "@/data/dummyData";
 import { cn } from "@/lib/utils";
+import { type RecognizedGesture } from "@/types";
+
+interface GestureOutputPanelProps {
+  gestures?: RecognizedGesture[];
+}
 
 const containerVariants = {
-  hidden: {},
+  hidden:  {},
   visible: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
 };
 
@@ -15,7 +19,7 @@ const itemVariants = {
   visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
 };
 
-export default function GestureOutputPanel() {
+export default function GestureOutputPanel({ gestures = [] }: GestureOutputPanelProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -35,58 +39,68 @@ export default function GestureOutputPanel() {
           </div>
         </div>
 
-        {/* List */}
-        {recognizedGestures.length === 0 ? (
-          <EmptyState
-            icon={<MessageSquareText className="h-5 w-5" />}
-            title="No gestures yet"
-            description="Start a session and begin signing — translated words will appear here."
-          />
-        ) : (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex flex-1 flex-col gap-2.5 overflow-y-auto scrollbar-thin"
-          >
-            {recognizedGestures.map((gesture) => (
-              <motion.div
-                key={gesture.id}
-                variants={itemVariants}
-                className="rounded-xl2 bg-beige-50 px-4 py-3.5"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-ink-900">{gesture.word}</p>
-                    <p className="text-xs text-ink-400">{gesture.timestamp}</p>
+        {/* List or empty state */}
+        <AnimatePresence mode="wait">
+          {gestures.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <EmptyState
+                icon={<MessageSquareText className="h-5 w-5" />}
+                title="No gestures yet"
+                description="Start a session and begin signing — translated words will appear here."
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="list"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="flex flex-1 flex-col gap-2.5 overflow-y-auto scrollbar-thin"
+            >
+              {gestures.map((gesture) => (
+                <motion.div
+                  key={gesture.id}
+                  variants={itemVariants}
+                  className="rounded-xl2 bg-beige-50 px-4 py-3.5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink-900">{gesture.word}</p>
+                      <p className="text-xs text-ink-400">{gesture.timestamp}</p>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold",
+                        gesture.confidence >= 95
+                          ? "bg-mint-400/15 text-mint-500"
+                          : "bg-signal-50 text-signal-600"
+                      )}
+                    >
+                      {gesture.confidence}%
+                    </span>
                   </div>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold",
-                      gesture.confidence >= 95
-                        ? "bg-mint-400/15 text-mint-500"
-                        : "bg-signal-50 text-signal-600"
-                    )}
-                  >
-                    {gesture.confidence}%
-                  </span>
-                </div>
-                {/* Confidence bar */}
-                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-ink-900/8">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${gesture.confidence}%` }}
-                    transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-                    className={cn(
-                      "h-full rounded-full",
-                      gesture.confidence >= 95 ? "bg-mint-400" : "bg-signal-400"
-                    )}
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+                  {/* Confidence bar */}
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-ink-900/8">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${gesture.confidence}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+                      className={cn(
+                        "h-full rounded-full",
+                        gesture.confidence >= 95 ? "bg-mint-400" : "bg-signal-400"
+                      )}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Card>
     </motion.div>
   );
