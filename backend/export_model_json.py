@@ -62,5 +62,5 @@ payload = {
 
 out_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
 size_kb = out_path.stat().st_size / 1024
-print(f"Saved → {out_path}  ({size_kb:.0f} KB)")
+print(f"Saved -> {out_path}  ({size_kb:.0f} KB)")
 print("Done.")

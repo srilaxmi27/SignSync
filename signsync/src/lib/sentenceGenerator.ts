@@ -17,10 +17,18 @@ import {
 } from "@/config/gestureMappings";
 
 export interface SentenceResult {
-  sentence:  string;
-  emoji:     string;
-  category:  string;
-  isMapped:  boolean;   // true if an explicit mapping was found
+  sentence:     string;
+  emoji:        string;
+  category:     string;
+  standardName: string;
+  sentence_te:  string;
+  sentence_hi:  string;
+  isMapped:     boolean;   // true if an explicit mapping was found
+  tutorialUrl?: string;
+  imageUrl?:    string;
+  gifUrl?:      string;
+  videoUrl?:    string;
+  externalLink?: string;
 }
 
 /**
@@ -35,19 +43,33 @@ export function generateSentence(label: string | null): SentenceResult | null {
 
   if (mapping) {
     return {
-      sentence: mapping.sentence,
-      emoji:    mapping.emoji     ?? "✋",
-      category: mapping.category  ?? "general",
-      isMapped: true,
+      sentence:     mapping.sentence,
+      emoji:        mapping.emoji     ?? "✋",
+      category:     mapping.category  ?? "general",
+      standardName: mapping.standardName,
+      sentence_te:  mapping.sentence_te,
+      sentence_hi:  mapping.sentence_hi,
+      isMapped:     true,
+      tutorialUrl:  mapping.tutorialUrl,
+      imageUrl:     mapping.imageUrl,
+      gifUrl:       mapping.gifUrl,
+      videoUrl:     mapping.videoUrl,
+      externalLink: mapping.externalLink,
     };
   }
 
+  const defaultStandardName = "ISL / ASL - " + label.charAt(0).toUpperCase() + label.slice(1);
+  const fallbackSentence = UNMAPPED_TEMPLATE(label);
+
   // Graceful fallback — still shows something instead of crashing
   return {
-    sentence: UNMAPPED_TEMPLATE(label),
-    emoji:    "✋",
-    category: "general",
-    isMapped: false,
+    sentence:     fallbackSentence,
+    emoji:        "✋",
+    category:     "general",
+    standardName: defaultStandardName,
+    sentence_te:  fallbackSentence,
+    sentence_hi:  fallbackSentence,
+    isMapped:     false,
   };
 }
 

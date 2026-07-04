@@ -200,10 +200,7 @@ export default function GesturePredictionPanel({
                   className="overflow-hidden"
                 >
                   <div className="mt-3 flex flex-col gap-2">
-                    {classes.map((cls, i) => {
-                      const prob = prediction.confidence > 0 && prediction.label === cls
-                        ? prediction.confidence
-                        : 0;
+                    {classes.map((cls) => {
                       return (
                         <div key={cls} className="flex items-center gap-3">
                           <span className="w-24 truncate text-right text-xs text-ink-600 capitalize">

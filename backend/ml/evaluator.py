@@ -122,7 +122,7 @@ def print_results(result: EvaluationResult) -> None:
     print(f"  Testing  samples : {result.n_test}")
     print(f"  Train accuracy   : {result.train_accuracy:.1f}%")
     print(f"  Test  accuracy   : {result.test_accuracy:.1f}%")
-    print(f"  CV accuracy      : {result.cv_mean:.1f}% ± {result.cv_std:.1f}%")
+    print(f"  CV accuracy      : {result.cv_mean:.1f}% +/- {result.cv_std:.1f}%")
     print(f"\n  Per-class report:")
     for line in result.report.splitlines():
         print(f"    {line}")
@@ -130,6 +130,6 @@ def print_results(result: EvaluationResult) -> None:
     for f in result.top_features:
         print(
             f"    {f['rank']:2}. [{f['index']:3}] {f['hand']} LM{f['landmark']:2} "
-            f"{f['coord']}  →  {f['importance']:.4f}"
+            f"{f['coord']}  ->  {f['importance']:.4f}"
         )
     print(f"{'='*w}\n")

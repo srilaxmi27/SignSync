@@ -99,9 +99,9 @@ paths = save_model(
     output_dir=BACKEND_DIR,
     model_name=args.output,
 )
-print(f"        gesture_model → {paths.model_path}")
-print(f"        label_encoder → {paths.encoder_path}")
-print(f"        metadata      → {paths.meta_path}")
+print(f"        gesture_model -> {paths.model_path}")
+print(f"        label_encoder -> {paths.encoder_path}")
+print(f"        metadata      -> {paths.meta_path}")
 
 print(f"\n{'='*W}")
 print(f"  DONE  |  Test accuracy: {result.test_accuracy:.1f}%")

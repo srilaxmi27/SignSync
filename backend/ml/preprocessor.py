@@ -76,6 +76,18 @@ def preprocess(
         stratify=y,     # preserve class proportions in both splits
     )
 
+    # ── Data Augmentation ─────────────────────────────────────────────────
+    # Duplicate training samples with small Gaussian noise to improve accuracy/generalization
+    rng = np.random.default_rng(seed)
+    noise = rng.normal(0, 0.003, X_train.shape).astype(np.float32)
+    X_train_aug = X_train.copy()
+    # Apply noise only to non-zero elements to avoid corrupting empty hands
+    non_zero_mask = X_train != 0.0
+    X_train_aug[non_zero_mask] += noise[non_zero_mask]
+
+    X_train = np.vstack([X_train, X_train_aug])
+    y_train = np.hstack([y_train, y_train])
+
     return PreparedData(
         X_train=X_train,
         X_test=X_test,

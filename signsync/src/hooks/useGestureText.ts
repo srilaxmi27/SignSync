@@ -21,6 +21,10 @@ export interface GestureTextResult {
   sentenceResult:  SentenceResult | null;
   currentLabel:    string | null;
   isActive:        boolean;   // true when a valid gesture is currently held
+  isMuted:         boolean;
+  setIsMuted:      (muted: boolean) => void;
+  language:        "en" | "te" | "hi";
+  setLanguage:     (lang: "en" | "te" | "hi") => void;
 }
 
 // How many consecutive frames a gesture must hold before the sentence updates
@@ -35,9 +39,32 @@ export function useGestureText(
   const stableCountRef = useRef(0);
   const nullCountRef   = useRef(0);
   const pendingLabel   = useRef<string | null>(null);
+  const lastSpokenLabelRef = useRef<string | null>(null);
 
   const [currentLabel,   setCurrentLabel]   = useState<string | null>(null);
   const [sentenceResult, setSentenceResult] = useState<SentenceResult | null>(null);
+
+  // Read speaker mute state from localStorage
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    return localStorage.getItem("signsync_tts_muted") === "true";
+  });
+
+  // Read speaker language state from localStorage
+  const [language, setLanguage] = useState<"en" | "te" | "hi">(() => {
+    return (localStorage.getItem("signsync_tts_language") as "en" | "te" | "hi") ?? "en";
+  });
+
+  const handleSetMuted = (muted: boolean) => {
+    setIsMuted(muted);
+    localStorage.setItem("signsync_tts_muted", String(muted));
+  };
+
+  const handleSetLanguage = (lang: "en" | "te" | "hi") => {
+    setLanguage(lang);
+    localStorage.setItem("signsync_tts_language", lang);
+    // Reset last spoken when language changes to allow immediate re-speaking in new language
+    lastSpokenLabelRef.current = null;
+  };
 
   useEffect(() => {
     const { label, confidence } = prediction;
@@ -75,9 +102,59 @@ export function useGestureText(
     }
   }, [prediction, confidenceThreshold, currentLabel]);
 
+  // Speech synthesis side-effect
+  useEffect(() => {
+    if (isMuted) {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      return;
+    }
+
+    if (currentLabel && sentenceResult) {
+      if (currentLabel !== lastSpokenLabelRef.current) {
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel(); // interrupt previous speech
+
+          const textToSpeak =
+            language === "te" ? sentenceResult.sentence_te :
+            language === "hi" ? sentenceResult.sentence_hi :
+            sentenceResult.sentence;
+
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          
+          if (language === "te") {
+            utterance.lang = "te-IN";
+          } else if (language === "hi") {
+            utterance.lang = "hi-IN";
+          } else {
+            utterance.lang = "en-US";
+          }
+
+          // Try to select matching voice
+          const voices = window.speechSynthesis.getVoices();
+          const matchedVoice = voices.find((v) => v.lang.startsWith(language));
+          if (matchedVoice) {
+            utterance.voice = matchedVoice;
+          }
+
+          window.speechSynthesis.speak(utterance);
+        }
+        lastSpokenLabelRef.current = currentLabel;
+      }
+    } else {
+      // Reset lastSpokenLabelRef when gesture disappears, allowing it to trigger again next time
+      lastSpokenLabelRef.current = null;
+    }
+  }, [currentLabel, sentenceResult, isMuted, language]);
+
   return {
     sentenceResult,
     currentLabel,
     isActive: currentLabel !== null,
+    isMuted,
+    setIsMuted: handleSetMuted,
+    language,
+    setLanguage: handleSetLanguage,
   };
 }

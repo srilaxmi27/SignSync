@@ -7,8 +7,9 @@ import {
   HelpCircle,
   LogOut,
   X,
+  Mic,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "@/components/ui/Logo";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -19,11 +20,12 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { label: "Overview",         icon: LayoutDashboard, href: "#overview" },
-  { label: "Live translation", icon: Camera,           href: "#camera" },
-  { label: "Activity history", icon: History,          href: "#activity" },
-  { label: "Settings",         icon: Settings,         href: null },
-  { label: "Help & support",   icon: HelpCircle,       href: null },
+  { label: "Overview",           icon: LayoutDashboard, href: "#overview" },
+  { label: "Live translation",   icon: Camera,           href: "#camera" },
+  { label: "Speech translation", icon: Mic,              href: "/speech" },
+  { label: "Activity history",   icon: History,          href: "#activity" },
+  { label: "Settings",           icon: Settings,         href: null },
+  { label: "Help & support",     icon: HelpCircle,       href: null },
 ];
 
 const drawerVariants = {
@@ -147,12 +149,28 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   );
 }
 
-function NavItem({ item, Icon }: { item: (typeof navItems)[0]; Icon: typeof LayoutDashboard }) {
+function NavItem({ item, Icon }: { item: (typeof navItems)[0]; Icon: any }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleClick = (e: React.MouseEvent) => {
-    if (!item.href) return; // no-op for items without a target section
+    if (!item.href) return;
     e.preventDefault();
-    const el = document.querySelector(item.href);
-    el?.scrollIntoView({ behavior: "smooth" });
+
+    if (item.href.startsWith("#")) {
+      if (location.pathname === "/dashboard") {
+        const el = document.querySelector(item.href);
+        el?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        navigate("/dashboard");
+        setTimeout(() => {
+          const el = document.querySelector(item.href!);
+          el?.scrollIntoView({ behavior: "smooth" });
+        }, 200);
+      }
+    } else {
+      navigate(item.href);
+    }
   };
 
   return (

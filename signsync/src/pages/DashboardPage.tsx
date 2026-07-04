@@ -15,6 +15,8 @@ import type { FeatureVector } from "@/lib/featureGenerator";
 import { useGesturePrediction } from "@/hooks/useGesturePrediction";
 import GestureTextPanel from "@/components/dashboard/GestureTextPanel";
 import { useGestureText }        from "@/hooks/useGestureText";
+import StandardSignLanguageCard from "@/components/dashboard/StandardSignLanguageCard";
+import SignLanguageLearningCard from "@/components/dashboard/SignLanguageLearningCard";
 
 // ─── Live stats → StatusMetric shape ─────────────────────────────────────────
 
@@ -82,6 +84,7 @@ export default function DashboardPage() {
   const [elapsedSeconds,  setElapsedSeconds]  = useState(0);
   const [sessionStartAt,  setSessionStartAt]  = useState<number | null>(null);
   const [featureVector,   setFeatureVector]   = useState<FeatureVector | null>(null);
+  const [gestures,        setGestures]        = useState<import("@/types").RecognizedGesture[]>([]);
 
   // ── Gesture prediction (RF model, in-browser) ─────────────────────────────
   const prediction = useGesturePrediction(featureVector, {
@@ -109,6 +112,23 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [sessionActive, sessionStartAt]);
 
+  // Log recognized gestures to local history
+  useEffect(() => {
+    if (sessionActive && gestureText.isActive && gestureText.currentLabel && gestureText.sentenceResult) {
+      const last = gestures[0];
+      const word = gestureText.currentLabel;
+      if (!last || last.word !== word) {
+        const newGesture: import("@/types").RecognizedGesture = {
+          id:         Math.random().toString(36).substring(2, 9),
+          word:       word,
+          confidence: Math.round(prediction.confidence * 100),
+          timestamp:  new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        };
+        setGestures((prev) => [newGesture, ...prev]);
+      }
+    }
+  }, [gestureText.currentLabel, gestureText.isActive, gestureText.sentenceResult, sessionActive, prediction.confidence]);
+
   const handleSessionStart = useCallback(() => {
     if (!user) return;
     const updated = recordSessionStart(user.id);
@@ -116,6 +136,7 @@ export default function DashboardPage() {
     setSessionActive(true);
     setSessionStartAt(Date.now());
     setElapsedSeconds(0);
+    setGestures([]); // Clear gesture log on start
   }, [user]);
 
   const handleSessionStop = useCallback(() => {
@@ -171,8 +192,17 @@ export default function DashboardPage() {
                 prediction={prediction}
                 sessionActive={sessionActive}
               />
+              {/* Standard Sign Language reference card */}
+              {sessionActive && gestureText.isActive && gestureText.sentenceResult && (
+                <StandardSignLanguageCard
+                  label={gestureText.currentLabel || ""}
+                  sentenceResult={gestureText.sentenceResult}
+                />
+              )}
+              {/* Learn Sign Language section */}
+              <SignLanguageLearningCard />
               {/* Gesture output log */}
-              <GestureOutputPanel />
+              <GestureOutputPanel gestures={gestures} />
               {/* Dataset collection (dev tool) */}
               <DatasetPanel
                 featureVector={featureVector}

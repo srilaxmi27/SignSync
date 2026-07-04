@@ -10,8 +10,8 @@
   "feature_length": 126,
   "train_accuracy": 100.0,
   "test_accuracy": 99.05,
-  "cv_accuracy": 93.33,
-  "n_train": 420,
+  "cv_accuracy": 94.86,
+  "n_train": 840,
   "n_test": 105,
   "model_file": "gesture_model.pkl",
   "encoder_file": "label_encoder.pkl"

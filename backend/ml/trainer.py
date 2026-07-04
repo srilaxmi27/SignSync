@@ -14,7 +14,7 @@ from ml.preprocessor import PreparedData
 
 def train(
     data:       PreparedData,
-    n_estimators: int = 200,
+    n_estimators: int = 300,
     seed:         int = 42,
 ) -> RandomForestClassifier:
     """
@@ -23,7 +23,7 @@ def train(
     Parameters
     ----------
     data         : PreparedData from preprocessor
-    n_estimators : number of trees (default 200)
+    n_estimators : number of trees (default 300)
     seed         : random state
 
     Returns
@@ -32,8 +32,10 @@ def train(
     """
     clf = RandomForestClassifier(
         n_estimators=n_estimators,
-        max_depth=None,          # grow fully — RF handles overfitting via averaging
-        min_samples_leaf=1,
+        criterion="entropy",
+        max_depth=15,            # regularize tree depth to prevent overfitting
+        min_samples_leaf=3,      # regularize leaf sizes for smoother decision boundaries
+        class_weight="balanced", # handle imbalanced datasets if any
         n_jobs=-1,               # use all CPU cores
         random_state=seed,
     )
