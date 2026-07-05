@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Menu, Search, LogOut, User, Settings, ChevronDown, X } from "lucide-react";
+import { Bell, Menu, Search, LogOut, User, Settings, HelpCircle, ChevronDown, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -10,28 +10,23 @@ interface TopNavbarProps {
 
 function getGreeting(name?: string): string {
   const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  return name ? `${greeting}, ${name.split(" ")[0]}` : greeting;
+  const g = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  return name ? `${g}, ${name.split(" ")[0]}` : g;
 }
 
 export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [searchFocused, setSearchFocused] = useState(false);
-  const [dropdownOpen, setDropdownOpen]   = useState(false);
-  const [notifOpen, setNotifOpen]         = useState(false);
+  const [dropdownOpen,  setDropdownOpen]  = useState(false);
+  const [notifOpen,     setNotifOpen]     = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false);
+      if (notifRef.current  && !notifRef.current.contains(e.target as Node))  setNotifOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -52,12 +47,8 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
           <Menu className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-base font-bold text-white sm:text-lg">
-            {getGreeting(user?.name ?? "")}
-          </h1>
-          <p className="text-xs text-white/40">
-            Here's your translation activity for today.
-          </p>
+          <h1 className="text-base font-bold text-white sm:text-lg">{getGreeting(user?.name ?? "")}</h1>
+          <p className="text-xs text-white/40">Live translation workspace</p>
         </div>
       </div>
 
@@ -80,7 +71,7 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
           />
         </motion.div>
 
-        {/* Notification bell */}
+        {/* Notifications */}
         <div ref={notifRef} className="relative">
           <button
             onClick={() => setNotifOpen((p) => !p)}
@@ -93,19 +84,16 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
           <AnimatePresence>
             {notifOpen && (
               <motion.div
-                key="notif-panel"
+                key="notif"
                 initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+                animate={{ opacity: 1, scale: 1,    y: 0  }}
                 exit={{ opacity: 0, scale: 0.95, y: -6 }}
                 transition={{ duration: 0.15 }}
                 className="absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl2 border border-white/10 bg-signal-700 shadow-elevated"
               >
                 <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
                   <p className="text-sm font-semibold text-white">Notifications</p>
-                  <button
-                    onClick={() => setNotifOpen(false)}
-                    className="text-white/40 hover:text-white transition-colors"
-                  >
+                  <button onClick={() => setNotifOpen(false)} className="text-white/40 hover:text-white transition-colors">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -117,7 +105,7 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
           </AnimatePresence>
         </div>
 
-        {/* Avatar + dropdown */}
+        {/* Avatar + profile dropdown */}
         <div ref={dropdownRef} className="relative">
           <button
             onClick={() => setDropdownOpen((p) => !p)}
@@ -128,22 +116,18 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-signal-400 to-signal-600 text-sm font-bold text-white shadow-glow-signal">
               {user?.avatarInitials ?? "SS"}
             </div>
-            <ChevronDown
-              className={`h-4 w-4 text-white/40 transition-transform ${
-                dropdownOpen ? "rotate-180" : ""
-              }`}
-            />
+            <ChevronDown className={`h-4 w-4 text-white/40 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           <AnimatePresence>
             {dropdownOpen && (
               <motion.div
-                key="user-dropdown"
+                key="profile-dropdown"
                 initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
+                animate={{ opacity: 1, scale: 1,    y: 0  }}
                 exit={{ opacity: 0, scale: 0.95, y: -6 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl2 border border-white/10 bg-signal-700 shadow-elevated"
+                className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl2 border border-white/10 bg-signal-700 shadow-elevated"
               >
                 {user && (
                   <div className="border-b border-white/5 px-4 py-3">
@@ -156,23 +140,26 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
                     onClick={() => { setDropdownOpen(false); navigate("/dashboard"); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
                   >
-                    <User className="h-4 w-4" />
-                    Profile
+                    <User className="h-4 w-4" /> Profile
                   </button>
                   <button
-                    onClick={() => { setDropdownOpen(false); navigate("/dashboard"); }}
+                    onClick={() => { setDropdownOpen(false); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
                   >
-                    <Settings className="h-4 w-4" />
-                    Settings
+                    <Settings className="h-4 w-4" /> Settings
+                  </button>
+                  <button
+                    onClick={() => { setDropdownOpen(false); }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                  >
+                    <HelpCircle className="h-4 w-4" /> Help &amp; Support
                   </button>
                   <div className="my-1 border-t border-white/5" />
                   <button
                     onClick={() => { setDropdownOpen(false); logout(); navigate("/"); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-coral-400 hover:bg-white/5 transition-colors"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Log out
+                    <LogOut className="h-4 w-4" /> Log out
                   </button>
                 </div>
               </motion.div>

@@ -1,73 +1,55 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import Sidebar from "@/components/dashboard/Sidebar";
+import Sidebar, { addSessionToHistory } from "@/components/dashboard/Sidebar";
 import TopNavbar from "@/components/dashboard/TopNavbar";
 import StatusCard from "@/components/dashboard/StatusCard";
 import CameraPanel from "@/components/dashboard/CameraPanel";
 import GestureOutputPanel from "@/components/dashboard/GestureOutputPanel";
-import GesturePredictionPanel from "@/components/dashboard/GesturePredictionPanel";
-import ActivityHistory from "@/components/dashboard/ActivityHistory";
+import GestureTextPanel from "@/components/dashboard/GestureTextPanel";
+import AddGesturePanel from "@/components/dashboard/AddGesturePanel";
 import DatasetPanel from "@/components/dashboard/DatasetPanel";
 import { useAuth } from "@/context/AuthContext";
-import { loadStats, recordSessionStart, recordSessionEnd, type SessionStats } from "@/store/sessionStore";
+import {
+  loadStats,
+  recordSessionStart,
+  recordSessionEnd,
+  type SessionStats,
+} from "@/store/sessionStore";
 import { type StatusMetric } from "@/types";
 import type { FeatureVector } from "@/lib/featureGenerator";
 import { useGesturePrediction } from "@/hooks/useGesturePrediction";
-import GestureTextPanel from "@/components/dashboard/GestureTextPanel";
-import { useGestureText }        from "@/hooks/useGestureText";
-import StandardSignLanguageCard from "@/components/dashboard/StandardSignLanguageCard";
-import SignLanguageLearningCard from "@/components/dashboard/SignLanguageLearningCard";
+import { useGestureText } from "@/hooks/useGestureText";
 
-// ─── Live stats → StatusMetric shape ─────────────────────────────────────────
+// ─── Metrics builder ──────────────────────────────────────────────────────────
 
-function buildMetrics(
-  stats:          SessionStats,
-  elapsedSeconds: number,
-): StatusMetric[] {
+function buildMetrics(stats: SessionStats, elapsedSeconds: number): StatusMetric[] {
   const totalMinutes = stats.minutesTotal + elapsedSeconds / 60;
-
   const fmt = (min: number) => {
-    if (min < 1)   return "0 min";
-    if (min < 60)  return `${Math.floor(min)} min`;
-    const h = Math.floor(min / 60);
-    const m = Math.floor(min % 60);
+    if (min < 1)  return "0 min";
+    if (min < 60) return `${Math.floor(min)} min`;
+    const h = Math.floor(min / 60), m = Math.floor(min % 60);
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   };
-
   return [
     {
-      id:    "sessions",
-      label: "Sessions today",
-      value: String(stats.sessionsToday),
-      helper: stats.sessionsToday === 0
-        ? "Start your first session"
-        : stats.sessionsToday === 1
-        ? "1 session so far today"
-        : `${stats.sessionsToday} sessions so far today`,
+      id: "sessions", label: "Sessions today", value: String(stats.sessionsToday),
+      helper: stats.sessionsToday === 0 ? "Start your first session"
+        : `${stats.sessionsToday} session${stats.sessionsToday !== 1 ? "s" : ""} today`,
       icon: "activity",
     },
     {
-      id:    "minutes",
-      label: "Minutes translated",
-      value: fmt(totalMinutes),
-      helper: totalMinutes === 0
-        ? "No sessions yet"
+      id: "minutes", label: "Minutes translated", value: fmt(totalMinutes),
+      helper: totalMinutes === 0 ? "No sessions yet"
         : `Across ${stats.sessionsToday} session${stats.sessionsToday !== 1 ? "s" : ""} today`,
       icon: "clock",
     },
     {
-      id:    "accuracy",
-      label: "Recognition accuracy",
-      value: "—",
-      helper: "Available after first session",
-      icon: "target",
+      id: "accuracy", label: "Recognition accuracy", value: "—",
+      helper: "Available after first session", icon: "target",
     },
     {
-      id:    "latency",
-      label: "Avg. response time",
-      value: "—",
-      helper: "Available after first session",
-      icon: "zap",
+      id: "latency", label: "Avg. response time", value: "—",
+      helper: "Available after first session", icon: "zap",
     },
   ];
 }
@@ -76,7 +58,9 @@ function buildMetrics(
 
 export default function DashboardPage() {
   const { user } = useAuth();
+
   const [isSidebarOpen,   setIsSidebarOpen]   = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [stats,           setStats]           = useState<SessionStats>(() =>
     user ? loadStats(user.id) : { sessionsToday: 0, minutesTotal: 0, sessionDate: "" }
   );
@@ -85,87 +69,92 @@ export default function DashboardPage() {
   const [sessionStartAt,  setSessionStartAt]  = useState<number | null>(null);
   const [featureVector,   setFeatureVector]   = useState<FeatureVector | null>(null);
   const [gestures,        setGestures]        = useState<import("@/types").RecognizedGesture[]>([]);
+  // Show dev tools (DatasetPanel) only when explicitly opened
+  const [showDevTools,    setShowDevTools]    = useState(false);
 
-  // ── Gesture prediction (RF model, in-browser) ─────────────────────────────
-  const prediction = useGesturePrediction(featureVector, {
-    threshold:  0.55,
-    windowSize: 10,
-  });
+  const prediction  = useGesturePrediction(featureVector, { threshold: 0.65, windowSize: 15 });
+  const gestureText = useGestureText(prediction, 0.65);
 
-  // ── Gesture → Text (sentence generation with flicker suppression) ─────────
-  const gestureText = useGestureText(prediction, 0.55);
+  useEffect(() => { if (user) setStats(loadStats(user.id)); }, [user]);
 
-  // Reload stats from storage on mount (handles page refresh)
   useEffect(() => {
-    if (user) setStats(loadStats(user.id));
-  }, [user]);
-
-  // Live elapsed-time ticker while session is running
-  useEffect(() => {
-    if (!sessionActive || !sessionStartAt) {
-      setElapsedSeconds(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - sessionStartAt) / 1000));
-    }, 1000);
-    return () => clearInterval(interval);
+    if (!sessionActive || !sessionStartAt) { setElapsedSeconds(0); return; }
+    const id = setInterval(() =>
+      setElapsedSeconds(Math.floor((Date.now() - sessionStartAt) / 1000)), 1000);
+    return () => clearInterval(id);
   }, [sessionActive, sessionStartAt]);
 
-  // Log recognized gestures to local history
+  // Accumulate gesture log only (no transcript)
   useEffect(() => {
-    if (sessionActive && gestureText.isActive && gestureText.currentLabel && gestureText.sentenceResult) {
-      const last = gestures[0];
+    if (sessionActive && gestureText.isActive && gestureText.currentLabel) {
       const word = gestureText.currentLabel;
-      if (!last || last.word !== word) {
-        const newGesture: import("@/types").RecognizedGesture = {
-          id:         Math.random().toString(36).substring(2, 9),
-          word:       word,
+      if (!gestures[0] || gestures[0].word !== word) {
+        const entry: import("@/types").RecognizedGesture = {
+          id:         Math.random().toString(36).slice(2, 9),
+          word,
           confidence: Math.round(prediction.confidence * 100),
           timestamp:  new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
         };
-        setGestures((prev) => [newGesture, ...prev]);
+        setGestures((prev) => [entry, ...prev]);
       }
     }
-  }, [gestureText.currentLabel, gestureText.isActive, gestureText.sentenceResult, sessionActive, prediction.confidence]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gestureText.currentLabel, gestureText.isActive, sessionActive]);
 
   const handleSessionStart = useCallback(() => {
     if (!user) return;
-    const updated = recordSessionStart(user.id);
-    setStats(updated);
+    const id = Math.random().toString(36).slice(2, 11);
+    setActiveSessionId(id);
+    setStats(recordSessionStart(user.id));
     setSessionActive(true);
     setSessionStartAt(Date.now());
     setElapsedSeconds(0);
-    setGestures([]); // Clear gesture log on start
+    setGestures([]);
   }, [user]);
 
   const handleSessionStop = useCallback(() => {
     if (!user || !sessionStartAt) return;
     const elapsed = Math.floor((Date.now() - sessionStartAt) / 1000);
-    const updated = recordSessionEnd(user.id, elapsed);
-    setStats(updated);
+    setStats(recordSessionEnd(user.id, elapsed));
     setSessionActive(false);
     setSessionStartAt(null);
     setElapsedSeconds(0);
-  }, [user, sessionStartAt]);
+    if (activeSessionId) {
+      addSessionToHistory({
+        id:        activeSessionId,
+        title:     `Session — ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+        createdAt: new Date(),
+      });
+      window.dispatchEvent(new Event("storage"));
+    }
+    setActiveSessionId(null);
+  }, [user, sessionStartAt, activeSessionId]);
+
+  const handleNewSession = useCallback(() => {
+    if (sessionActive) handleSessionStop();
+  }, [sessionActive, handleSessionStop]);
 
   const metrics = buildMetrics(stats, sessionActive ? elapsedSeconds : 0);
 
   return (
     <div className="flex min-h-screen bg-beige-50">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onNewSession={handleNewSession}
+        activeSessionId={activeSessionId}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNavbar onMenuClick={() => setIsSidebarOpen(true)} />
 
         <motion.main
-          id="overview"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.1 }}
           className="flex-1 px-6 py-8 sm:px-8"
         >
-          {/* Status cards — live data */}
+          {/* Status cards */}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {metrics.map((metric, index) => (
               <StatusCard key={metric.id} metric={metric} index={index} />
@@ -173,47 +162,61 @@ export default function DashboardPage() {
           </div>
 
           {/* Primary grid */}
-          <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+          <div className="mt-6 grid gap-6 xl:grid-cols-[1.8fr_1fr]">
+            {/* Camera — StandardSignLanguageCard integrated inside */}
             <CameraPanel
               onSessionStart={handleSessionStart}
               onSessionStop={handleSessionStop}
               sessionElapsed={elapsedSeconds}
               onFeatureVector={setFeatureVector}
+              activeGestureLabel={
+                sessionActive && gestureText.isActive ? gestureText.currentLabel : null
+              }
+              activeGestureSentence={
+                sessionActive && gestureText.isActive ? gestureText.sentenceResult : null
+              }
             />
-            <div className="flex flex-col gap-6">
-              {/* Live gesture prediction — model output */}
-              <GesturePredictionPanel
-                prediction={prediction}
-                sessionActive={sessionActive}
-              />
-              {/* Gesture → Text translation */}
+
+            {/* Right column — clean, no redundancy */}
+            <div className="flex flex-col gap-5">
+              {/* Primary output: gesture → multilingual sentence + TTS */}
               <GestureTextPanel
                 gestureText={gestureText}
                 prediction={prediction}
                 sessionActive={sessionActive}
               />
-              {/* Standard Sign Language reference card */}
-              {sessionActive && gestureText.isActive && gestureText.sentenceResult && (
-                <StandardSignLanguageCard
-                  label={gestureText.currentLabel || ""}
-                  sentenceResult={gestureText.sentenceResult}
-                />
-              )}
-              {/* Learn Sign Language section */}
-              <SignLanguageLearningCard />
+
               {/* Gesture output log */}
               <GestureOutputPanel gestures={gestures} />
-              {/* Dataset collection (dev tool) */}
-              <DatasetPanel
+
+              {/* Add custom gesture mapping + sample recording */}
+              <AddGesturePanel
                 featureVector={featureVector}
                 sessionActive={sessionActive}
               />
-            </div>
-          </div>
 
-          {/* Activity */}
-          <div className="mt-6">
-            <ActivityHistory />
+              {/* Dev tools toggle */}
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setShowDevTools((p) => !p)}
+                  className="text-xs text-ink-400 hover:text-ink-600 transition-colors underline underline-offset-2"
+                >
+                  {showDevTools ? "Hide developer tools" : "Show developer tools"}
+                </button>
+              </div>
+
+              {/* DatasetPanel — collapsed by default */}
+              {showDevTools && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DatasetPanel featureVector={featureVector} sessionActive={sessionActive} />
+                </motion.div>
+              )}
+            </div>
           </div>
         </motion.main>
       </div>

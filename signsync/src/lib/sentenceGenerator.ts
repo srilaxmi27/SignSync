@@ -1,82 +1,91 @@
 /**
  * Sentence Generator
  * ──────────────────
- * Responsibility: convert a gesture label into a human-readable sentence.
+ * Converts a gesture label into a human-readable sentence in the
+ * requested language (English, Telugu, Hindi).
  *
- * Lookup is case-insensitive and trims whitespace so minor label
- * inconsistencies don't break the mapping.
- *
- * Returns null when label is null/empty (no gesture detected).
- * Falls back to a capitalised version of the label when no mapping exists.
+ * Merges static GESTURE_MAPPINGS with any custom gestures the user
+ * has added via AddGesturePanel (stored in localStorage).
  */
 
-import {
-  GESTURE_MAPPINGS,
-  UNMAPPED_TEMPLATE,
-  type GestureMapping,
-} from "@/config/gestureMappings";
+import { GESTURE_MAPPINGS, UNMAPPED_TEMPLATE } from "@/config/gestureMappings";
+import { loadCustomGestures } from "@/components/dashboard/AddGesturePanel";
 
 export interface SentenceResult {
-  sentence:     string;
-  emoji:        string;
-  category:     string;
-  standardName: string;
-  sentence_te:  string;
-  sentence_hi:  string;
-  isMapped:     boolean;   // true if an explicit mapping was found
-  tutorialUrl?: string;
-  imageUrl?:    string;
-  gifUrl?:      string;
-  videoUrl?:    string;
+  sentence:      string;
+  emoji:         string;
+  category:      string;
+  standardName:  string;
+  sentence_te:   string;
+  sentence_hi:   string;
+  isMapped:      boolean;
+  tutorialUrl?:  string;
+  imageUrl?:     string;
+  gifUrl?:       string;
+  videoUrl?:     string;
   externalLink?: string;
 }
 
-/**
- * Generate a sentence for a gesture label.
- * Returns null when label is null or empty.
- */
-export function generateSentence(label: string | null): SentenceResult | null {
-  if (!label || !label.trim()) return null;
+/** Build a merged lookup from static + custom gestures (called per-lookup so custom additions take effect immediately). */
+function getMergedMappings(): Record<string, SentenceResult> {
+  const merged: Record<string, SentenceResult> = {};
 
-  const key     = label.trim().toLowerCase();
-  const mapping: GestureMapping | undefined = GESTURE_MAPPINGS[key];
-
-  if (mapping) {
-    return {
-      sentence:     mapping.sentence,
-      emoji:        mapping.emoji     ?? "✋",
-      category:     mapping.category  ?? "general",
-      standardName: mapping.standardName,
-      sentence_te:  mapping.sentence_te,
-      sentence_hi:  mapping.sentence_hi,
+  // Static mappings
+  for (const [key, m] of Object.entries(GESTURE_MAPPINGS)) {
+    merged[key] = {
+      sentence:     m.sentence,
+      emoji:        m.emoji      ?? "✋",
+      category:     m.category   ?? "general",
+      standardName: m.standardName,
+      sentence_te:  m.sentence_te,
+      sentence_hi:  m.sentence_hi,
       isMapped:     true,
-      tutorialUrl:  mapping.tutorialUrl,
-      imageUrl:     mapping.imageUrl,
-      gifUrl:       mapping.gifUrl,
-      videoUrl:     mapping.videoUrl,
-      externalLink: mapping.externalLink,
+      tutorialUrl:  m.tutorialUrl,
+      imageUrl:     m.imageUrl,
+      gifUrl:       m.gifUrl,
+      videoUrl:     m.videoUrl,
+      externalLink: m.externalLink,
     };
   }
 
-  const defaultStandardName = "ISL / ASL - " + label.charAt(0).toUpperCase() + label.slice(1);
-  const fallbackSentence = UNMAPPED_TEMPLATE(label);
+  // Custom gestures override/extend static ones
+  for (const c of loadCustomGestures()) {
+    merged[c.label.toLowerCase()] = {
+      sentence:    c.sentence,
+      emoji:       c.emoji,
+      category:    c.category,
+      standardName: `Custom — ${c.label}`,
+      sentence_te: c.sentence_te || c.sentence,
+      sentence_hi: c.sentence,   // Hindi not collected in AddGesturePanel — fallback to EN
+      isMapped:    true,
+    };
+  }
 
-  // Graceful fallback — still shows something instead of crashing
+  return merged;
+}
+
+export function generateSentence(label: string | null): SentenceResult | null {
+  if (!label || !label.trim()) return null;
+
+  const key    = label.trim().toLowerCase();
+  const merged = getMergedMappings();
+  const found  = merged[key];
+
+  if (found) return found;
+
+  // Graceful fallback
+  const fallback = UNMAPPED_TEMPLATE(label);
   return {
-    sentence:     fallbackSentence,
-    emoji:        "✋",
-    category:     "general",
-    standardName: defaultStandardName,
-    sentence_te:  fallbackSentence,
-    sentence_hi:  fallbackSentence,
-    isMapped:     false,
+    sentence:    fallback,
+    emoji:       "✋",
+    category:    "general",
+    standardName: `ISL / ASL — ${label}`,
+    sentence_te: fallback,
+    sentence_hi: fallback,
+    isMapped:    false,
   };
 }
 
-/**
- * Check whether a mapping exists for a given label.
- * Useful for UI indicators (e.g. showing an "unmapped" badge).
- */
 export function isMappedGesture(label: string): boolean {
-  return label.trim().toLowerCase() in GESTURE_MAPPINGS;
+  return label.trim().toLowerCase() in getMergedMappings();
 }

@@ -20,6 +20,8 @@ import { SessionStatus } from "@/types";
 import { useMediaPipe } from "@/hooks/useMediaPipe";
 import { useLandmarkPipeline } from "@/hooks/useLandmarkPipeline";
 import DevPanel from "@/components/dashboard/DevPanel";
+import StandardSignLanguageCard from "@/components/dashboard/StandardSignLanguageCard";
+import type { SentenceResult } from "@/lib/sentenceGenerator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +63,9 @@ interface CameraPanelProps {
   onSessionStop?:  () => void;
   sessionElapsed?: number;
   onFeatureVector?: (fv: import("@/lib/featureGenerator").FeatureVector | null) => void;
+  // For integrated StandardSignLanguageCard
+  activeGestureLabel?:    string | null;
+  activeGestureSentence?: SentenceResult | null;
 }
 
 export default function CameraPanel({
@@ -68,6 +73,8 @@ export default function CameraPanel({
   onSessionStop,
   sessionElapsed = 0,
   onFeatureVector,
+  activeGestureLabel    = null,
+  activeGestureSentence = null,
 }: CameraPanelProps) {
   const videoRef        = useRef<HTMLVideoElement>(null);
   const canvasRef       = useRef<HTMLCanvasElement>(null);   // MediaPipe overlay
@@ -450,6 +457,25 @@ export default function CameraPanel({
             Your browser will ask for camera &amp; microphone permission when you start a session.
           </p>
         )}
+
+        {/* ── Integrated Sign Language Reference (shown when gesture detected) ── */}
+        <AnimatePresence>
+          {isActive && activeGestureLabel && activeGestureSentence && (
+            <motion.div
+              key={activeGestureLabel}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25 }}
+              className="border-t border-ink-900/6 pt-4"
+            >
+              <StandardSignLanguageCard
+                label={activeGestureLabel}
+                sentenceResult={activeGestureSentence}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Card>
     </motion.div>
   );
