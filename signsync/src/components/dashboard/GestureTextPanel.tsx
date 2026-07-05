@@ -11,7 +11,7 @@
  */
 
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquareText, HandMetal, Volume2, VolumeX } from "lucide-react";
+import { MessageSquareText, HandMetal, Volume2, VolumeX, Youtube } from "lucide-react";
 import Card from "@/components/ui/Card";
 import type { GestureTextResult } from "@/hooks/useGestureText";
 import type { GesturePrediction }  from "@/hooks/useGesturePrediction";
@@ -30,12 +30,17 @@ const categoryColors: Record<string, string> = {
   general:     "bg-beige-100 text-ink-600 border-ink-900/10",
 };
 
+function buildTutorialUrl(label: string, standardName?: string): string {
+  const query = encodeURIComponent(`${standardName || label} sign language tutorial`);
+  return `https://www.youtube.com/results?search_query=${query}`;
+}
+
 export default function GestureTextPanel({
   gestureText,
   prediction,
   sessionActive,
 }: GestureTextPanelProps) {
-  const { sentenceResult, currentLabel, isActive, isMuted, setIsMuted, language, setLanguage } = gestureText;
+  const { sentenceResult, currentLabel, isActive, isMuted, setIsMuted, language, setLanguage, ttsStatus } = gestureText;
   const { confidence } = prediction;
 
   return (
@@ -164,10 +169,35 @@ export default function GestureTextPanel({
                 )}
               </div>
 
+              <div className="rounded-xl border border-ink-900/10 bg-white/70 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">Standard sign language</p>
+                    <p className="text-sm font-semibold text-ink-800">{sentenceResult.standardName}</p>
+                  </div>
+                  <a
+                    href={buildTutorialUrl(currentLabel ?? sentenceResult.standardName ?? "sign language", sentenceResult.standardName)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 transition-colors hover:bg-red-100"
+                  >
+                    <Youtube className="h-3.5 w-3.5" />
+                    Watch tutorial
+                  </a>
+                </div>
+              </div>
+
               {/* Category chip */}
-              <p className="text-xs capitalize text-ink-400">
-                Category: {sentenceResult.category}
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs capitalize text-ink-400">
+                  Category: {sentenceResult.category}
+                </p>
+                {ttsStatus ? (
+                  <span className="rounded-full bg-signal-100 px-2.5 py-1 text-[11px] font-medium text-signal-700">
+                    {ttsStatus}
+                  </span>
+                ) : null}
+              </div>
             </motion.div>
           ) : null}
         </AnimatePresence>

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import LoadingSpinner from "./LoadingSpinner";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "icon";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "outline" | "icon" | "danger";
 type ButtonSize    = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -27,6 +27,8 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-transparent text-white border-2 border-white/70 hover:bg-white/10",
   icon:
     "bg-ink-900/5 text-ink-700 hover:bg-signal-50 hover:text-signal-600 rounded-full",
+  danger:
+    "bg-coral-500 text-white hover:bg-coral-600 active:bg-coral-700 shadow-soft",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -52,7 +54,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const resolvedVariant = (["primary","secondary","ghost","outline","icon"] as ButtonVariant[]).includes(variant)
+    const resolvedVariant = (["primary","secondary","ghost","outline","icon","danger"] as ButtonVariant[]).includes(variant)
       ? variant
       : "primary";
 

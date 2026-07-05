@@ -1,18 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Mic,
   MicOff,
   Volume2,
-  VolumeX,
-  Copy,
-  Trash2,
-  Globe,
   Play,
   Square,
-  Sparkles,
+  Copy,
+  Trash2,
   AlertCircle,
-  HelpCircle,
+  Languages,
 } from "lucide-react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import TopNavbar from "@/components/dashboard/TopNavbar";
@@ -55,7 +52,7 @@ export default function SpeechTranslationPage() {
   const [ttsText, setTtsText] = useState("");
   const [ttsLang, setTtsLang] = useState<"en" | "te" | "hi">("en");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [activeSpeech, setActiveSpeech] = useState<SpeechSynthesisUtterance | null>(null);
+  const [, setActiveSpeech] = useState<SpeechSynthesisUtterance | null>(null);
 
   // Preset quick phrases for the TTS panel
   const presetPhrases = {
@@ -148,34 +145,57 @@ export default function SpeechTranslationPage() {
   }, [isListening, sttLang]);
 
   // ── TTS play function ──────────────────────────────────────────────────────
-  const speakText = () => {
-    if (!ttsText.trim() || !("speechSynthesis" in window)) return;
+  const speakText = (textOverride?: string) => {
+    const textToSpeak = (textOverride ?? ttsText).trim();
+    if (!textToSpeak || !("speechSynthesis" in window)) return;
 
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(ttsText);
+    const speak = () => {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
-    // Set correct language code
-    if (ttsLang === "te") {
-      utterance.lang = "te-IN";
-    } else if (ttsLang === "hi") {
-      utterance.lang = "hi-IN";
-    } else {
-      utterance.lang = "en-US";
-    }
+      if (ttsLang === "te") {
+        utterance.lang = "te-IN";
+      } else if (ttsLang === "hi") {
+        utterance.lang = "hi-IN";
+      } else {
+        utterance.lang = "en-US";
+      }
 
-    // Assign appropriate voice
+      utterance.rate = 0.98;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      const voices = window.speechSynthesis.getVoices();
+      const matchVoice = voices.find((v) => v.lang.toLowerCase().startsWith(ttsLang))
+        ?? voices.find((v) => v.lang.toLowerCase().includes("te") && ttsLang === "te")
+        ?? voices.find((v) => v.lang.toLowerCase().includes("hi") && ttsLang === "hi")
+        ?? voices.find((v) => v.lang.toLowerCase().includes("en") && ttsLang === "en");
+      if (matchVoice) {
+        utterance.voice = matchVoice;
+      }
+
+      utterance.onstart = () => setIsPlaying(true);
+      utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => setIsPlaying(false);
+
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utterance);
+      setActiveSpeech(utterance);
+    };
+
     const voices = window.speechSynthesis.getVoices();
-    const matchVoice = voices.find((v) => v.lang.startsWith(ttsLang));
-    if (matchVoice) {
-      utterance.voice = matchVoice;
+    if (voices.length > 0) {
+      speak();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        speak();
+      };
+      window.setTimeout(() => {
+        window.speechSynthesis.onvoiceschanged = null;
+        speak();
+      }, 700);
     }
-
-    utterance.onstart = () => setIsPlaying(true);
-    utterance.onend = () => setIsPlaying(false);
-    utterance.onerror = () => setIsPlaying(false);
-
-    window.speechSynthesis.speak(utterance);
-    setActiveSpeech(utterance);
   };
 
   const stopSpeaking = () => {
@@ -397,14 +417,21 @@ export default function SpeechTranslationPage() {
 
               {/* Controls bar */}
               <div className="flex items-center justify-between border-t border-ink-900/5 pt-4">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="primary"
-                    onClick={speakText}
+                    onClick={() => speakText()}
                     disabled={!ttsText.trim()}
                     className="flex items-center gap-2 rounded-xl"
                   >
                     <Play className="h-4 w-4" /> Speak
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => speakText("నమస్కారం, ఈ తెలుగు ధ్వని మిమ్మల్ని వినిపిస్తుంది.")}
+                    className="flex items-center gap-2 rounded-xl"
+                  >
+                    <Languages className="h-4 w-4" /> Test Telugu
                   </Button>
                   <Button
                     variant="secondary"

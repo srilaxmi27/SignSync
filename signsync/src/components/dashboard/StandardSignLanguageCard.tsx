@@ -81,6 +81,24 @@ export default function StandardSignLanguageCard({
           </div>
         </div>
 
+        <div className="rounded-xl border border-signal-100 bg-signal-50/60 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400">Learning guide</p>
+              <p className="text-sm font-semibold text-ink-700">Open a YouTube tutorial for this sign.</p>
+            </div>
+            <a
+              href={tutorialUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${standardName || label} sign language tutorial`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
+            >
+              <Video className="h-3.5 w-3.5" />
+              YouTube tutorial
+            </a>
+          </div>
+        </div>
+
         {/* Extensible Future Expansion Sections */}
         {(imageUrl || gifUrl || videoUrl || tutorialUrl || externalLink) && (
           <div className="flex flex-col gap-3 border-t border-ink-900/5 pt-4">

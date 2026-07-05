@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LogOut, Mic, Plus, X } from "lucide-react";
+import { LogOut, Mic, Plus, X, Youtube } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Logo from "@/components/ui/Logo";
 import { useAuth } from "@/context/AuthContext";
@@ -29,6 +29,15 @@ function loadSessions(): SessionEntry[] {
 
 function saveSessions(sessions: SessionEntry[]): void {
   localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.slice(0, 50)));
+}
+
+function getEmbedUrl(url: string): string {
+  if (!url) return "";
+  if (url.includes("youtube.com/embed/")) return url;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  if (match && match[2].length === 11) return `https://www.youtube.com/embed/${match[2]}`;
+  return url;
 }
 
 /** Call this from DashboardPage when a session ends. */
@@ -68,8 +77,12 @@ export default function Sidebar({
   }, []);
 
   const handleLogout      = useCallback(() => { logout(); navigate("/"); }, [logout, navigate]);
-  const handleNewSession  = useCallback(() => { onNewSession?.(); onClose(); }, [onNewSession, onClose]);
-  const handleSelect = useCallback((id: string) => {
+  const handleNewSession  = useCallback(() => {
+    navigate("/dashboard");
+    onNewSession?.();
+    onClose();
+  }, [navigate, onNewSession, onClose]);
+  const handleSelect = useCallback((_id: string) => {
     navigate("/dashboard");
     onClose();
   }, [navigate, onClose]);
@@ -145,10 +158,32 @@ export default function Sidebar({
         />
       </div>
 
+      {/* ISL Basics Tutorial */}
+      <div className="border-t border-white/5 px-3 py-3">
+        <div className="rounded-xl border border-white/10 bg-white/5 p-2.5">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
+            <Youtube className="h-3.5 w-3.5 text-red-400" />
+            ISL basics
+          </div>
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-black">
+            <iframe
+              src={getEmbedUrl("https://www.youtube.com/watch?v=6w1ZDaE-whc&list=PLMN7QCuj6dfaUwmtdkdKhINGZzyGwp7Q1")}
+              title="Basic Indian Sign Language tutorial"
+              className="aspect-video w-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-white/60">
+            Learn core ISL signs and everyday phrases from a beginner-friendly video.
+          </p>
+        </div>
+      </div>
+
       {/* Speech Translation */}
       <div className="border-t border-white/5 px-3 py-3">
         <button
-          onClick={() => { navigate("/dashboard"); onClose(); }}
+          onClick={() => { navigate("/speech"); onClose(); }}
           className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/60 transition-colors hover:bg-white/5 hover:text-white"
         >
           <Mic className="h-5 w-5 shrink-0" />

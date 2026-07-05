@@ -137,19 +137,19 @@ export default function TopNavbar({ onMenuClick }: TopNavbarProps) {
                 )}
                 <div className="p-1">
                   <button
-                    onClick={() => { setDropdownOpen(false); navigate("/dashboard"); }}
+                    onClick={() => { setDropdownOpen(false); navigate("/profile"); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
                   >
                     <User className="h-4 w-4" /> Profile
                   </button>
                   <button
-                    onClick={() => { setDropdownOpen(false); }}
+                    onClick={() => { setDropdownOpen(false); navigate("/settings"); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
                   >
                     <Settings className="h-4 w-4" /> Settings
                   </button>
                   <button
-                    onClick={() => { setDropdownOpen(false); }}
+                    onClick={() => { setDropdownOpen(false); navigate("/help"); }}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
                   >
                     <HelpCircle className="h-4 w-4" /> Help &amp; Support

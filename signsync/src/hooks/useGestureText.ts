@@ -25,6 +25,7 @@ export interface GestureTextResult {
   setIsMuted:      (muted: boolean) => void;
   language:        "en" | "te" | "hi";
   setLanguage:     (lang: "en" | "te" | "hi") => void;
+  ttsStatus?:      string;
 }
 
 // How many consecutive frames a gesture must hold before the sentence updates
@@ -43,6 +44,7 @@ export function useGestureText(
 
   const [currentLabel,   setCurrentLabel]   = useState<string | null>(null);
   const [sentenceResult, setSentenceResult] = useState<SentenceResult | null>(null);
+  const [ttsStatus, setTtsStatus] = useState<string>("");
 
   // Read speaker mute state from localStorage
   const [isMuted, setIsMuted] = useState<boolean>(() => {
@@ -104,6 +106,7 @@ export function useGestureText(
 
   // Speech synthesis side-effect
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (isMuted) {
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -114,31 +117,56 @@ export function useGestureText(
     if (currentLabel && sentenceResult) {
       if (currentLabel !== lastSpokenLabelRef.current) {
         if ("speechSynthesis" in window) {
-          window.speechSynthesis.cancel(); // interrupt previous speech
-
           const textToSpeak =
             language === "te" ? sentenceResult.sentence_te :
             language === "hi" ? sentenceResult.sentence_hi :
             sentenceResult.sentence;
 
-          const utterance = new SpeechSynthesisUtterance(textToSpeak);
-          
-          if (language === "te") {
-            utterance.lang = "te-IN";
-          } else if (language === "hi") {
-            utterance.lang = "hi-IN";
-          } else {
-            utterance.lang = "en-US";
-          }
+          const speak = () => {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
-          // Try to select matching voice
+            if (language === "te") {
+              utterance.lang = "te-IN";
+            } else if (language === "hi") {
+              utterance.lang = "hi-IN";
+            } else {
+              utterance.lang = "en-US";
+            }
+
+            utterance.rate = 0.96;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            const voices = window.speechSynthesis.getVoices();
+            const matchedVoice = voices.find((v) => v.lang.toLowerCase().startsWith(language))
+              ?? voices.find((v) => v.lang.toLowerCase().includes("te") && language === "te")
+              ?? voices.find((v) => v.lang.toLowerCase().includes("hi") && language === "hi")
+              ?? voices.find((v) => v.lang.toLowerCase().includes("en") && language === "en")
+              ?? voices[0];
+            if (matchedVoice) {
+              utterance.voice = matchedVoice;
+            }
+
+            utterance.onstart = () => setTtsStatus("Playing");
+            utterance.onend = () => setTtsStatus("");
+            utterance.onerror = () => setTtsStatus("Speech audio unavailable in this browser");
+
+            window.speechSynthesis.resume();
+            window.speechSynthesis.speak(utterance);
+          };
+
           const voices = window.speechSynthesis.getVoices();
-          const matchedVoice = voices.find((v) => v.lang.startsWith(language));
-          if (matchedVoice) {
-            utterance.voice = matchedVoice;
+          if (voices.length > 0) {
+            speak();
+          } else {
+            const handleVoices = () => speak();
+            window.speechSynthesis.onvoiceschanged = handleVoices;
+            window.setTimeout(() => {
+              window.speechSynthesis.onvoiceschanged = null;
+              speak();
+            }, 600);
           }
-
-          window.speechSynthesis.speak(utterance);
         }
         lastSpokenLabelRef.current = currentLabel;
       }
@@ -156,5 +184,6 @@ export function useGestureText(
     setIsMuted: handleSetMuted,
     language,
     setLanguage: handleSetLanguage,
+    ttsStatus,
   };
 }

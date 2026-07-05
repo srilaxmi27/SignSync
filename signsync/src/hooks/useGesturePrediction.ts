@@ -24,6 +24,7 @@ import { loadModel, type RFModel }    from "@/lib/modelLoader";
 import { predict }                    from "@/lib/predictionService";
 import { PredictionSmoother }         from "@/lib/predictionSmoother";
 import type { FeatureVector }         from "@/lib/featureGenerator";
+import { loadCustomGestureSamples, type DataSample } from "@/lib/customGestureSamples";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,38 @@ class FpsTracker {
   reset() { this.times = []; }
 }
 
+function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    const av = a[i];
+    const bv = b[i];
+    dot += av * bv;
+    na += av * av;
+    nb += bv * bv;
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  if (!denom) return 0;
+  return Math.max(0, Math.min(1, dot / denom));
+}
+
+function findCustomMatch(featureVector: FeatureVector, samples: DataSample[]): { label: string; confidence: number } | null {
+  if (!samples.length || featureVector.isZero || featureVector.handsEncoded === 0) return null;
+
+  let best: { label: string; confidence: number } | null = null;
+  for (const sample of samples) {
+    if (!sample.features?.length) continue;
+    const features = new Float32Array(sample.features);
+    const similarity = cosineSimilarity(featureVector.data, features);
+    if (similarity >= 0.9 && (!best || similarity > best.confidence)) {
+      best = { label: sample.label, confidence: similarity };
+    }
+  }
+
+  return best;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGesturePrediction(
@@ -81,6 +114,7 @@ export function useGesturePrediction(
   const [modelLoaded, setModelLoaded] = useState(false);
   const [modelError,  setModelError]  = useState<string | null>(null);
   const [classes,     setClasses]     = useState<string[]>([]);
+  const [customSamples, setCustomSamples] = useState<DataSample[]>(() => loadCustomGestureSamples());
   const [prediction,  setPrediction]  = useState<GesturePrediction>({
     label:       null,
     confidence:  0,
@@ -108,6 +142,16 @@ export function useGesturePrediction(
 
   // Initial load
   useEffect(() => { doLoad(); }, [doLoad]);
+
+  useEffect(() => {
+    const refreshSamples = () => setCustomSamples(loadCustomGestureSamples());
+    window.addEventListener("signsync:custom-gesture-samples", refreshSamples);
+    window.addEventListener("storage", refreshSamples);
+    return () => {
+      window.removeEventListener("signsync:custom-gesture-samples", refreshSamples);
+      window.removeEventListener("storage", refreshSamples);
+    };
+  }, []);
 
   // Periodic reload to pick up retrained models
   useEffect(() => {
@@ -140,11 +184,19 @@ export function useGesturePrediction(
 
     // Run inference
     const raw = predict(model, featureVector, threshold);
+    const customMatch = findCustomMatch(featureVector, customSamples);
+
+    const resolvedLabel = customMatch && (!raw || customMatch.confidence > raw.confidence)
+      ? customMatch.label
+      : raw?.label ?? null;
+    const resolvedConfidence = customMatch && (!raw || customMatch.confidence > raw.confidence)
+      ? customMatch.confidence
+      : raw?.confidence ?? 0;
 
     // Push to smoother (null if below threshold)
     const smoothed = smootherRef.current.push(
-      raw?.label ?? null,
-      raw?.confidence ?? 0,
+      resolvedLabel,
+      resolvedConfidence,
     );
 
     const f = fpsRef.current.tick();

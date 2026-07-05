@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { AlertTriangle, Mic, Phone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Sidebar, { addSessionToHistory } from "@/components/dashboard/Sidebar";
 import TopNavbar from "@/components/dashboard/TopNavbar";
 import StatusCard from "@/components/dashboard/StatusCard";
@@ -7,7 +9,6 @@ import CameraPanel from "@/components/dashboard/CameraPanel";
 import GestureOutputPanel from "@/components/dashboard/GestureOutputPanel";
 import GestureTextPanel from "@/components/dashboard/GestureTextPanel";
 import AddGesturePanel from "@/components/dashboard/AddGesturePanel";
-import DatasetPanel from "@/components/dashboard/DatasetPanel";
 import { useAuth } from "@/context/AuthContext";
 import {
   loadStats,
@@ -19,6 +20,7 @@ import { type StatusMetric } from "@/types";
 import type { FeatureVector } from "@/lib/featureGenerator";
 import { useGesturePrediction } from "@/hooks/useGesturePrediction";
 import { useGestureText } from "@/hooks/useGestureText";
+import Button from "@/components/ui/Button";
 
 // ─── Metrics builder ──────────────────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ function buildMetrics(stats: SessionStats, elapsedSeconds: number): StatusMetric
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [isSidebarOpen,   setIsSidebarOpen]   = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -69,8 +72,7 @@ export default function DashboardPage() {
   const [sessionStartAt,  setSessionStartAt]  = useState<number | null>(null);
   const [featureVector,   setFeatureVector]   = useState<FeatureVector | null>(null);
   const [gestures,        setGestures]        = useState<import("@/types").RecognizedGesture[]>([]);
-  // Show dev tools (DatasetPanel) only when explicitly opened
-  const [showDevTools,    setShowDevTools]    = useState(false);
+  const [sosMessage,      setSosMessage]      = useState("");
 
   const prediction  = useGesturePrediction(featureVector, { threshold: 0.65, windowSize: 15 });
   const gestureText = useGestureText(prediction, 0.65);
@@ -131,8 +133,48 @@ export default function DashboardPage() {
   }, [user, sessionStartAt, activeSessionId]);
 
   const handleNewSession = useCallback(() => {
-    if (sessionActive) handleSessionStop();
-  }, [sessionActive, handleSessionStop]);
+    if (sessionActive) {
+      handleSessionStop();
+      window.setTimeout(() => handleSessionStart(), 120);
+      return;
+    }
+    handleSessionStart();
+  }, [sessionActive, handleSessionStart, handleSessionStop]);
+
+  const handleSos = useCallback(() => {
+    if (!sessionActive) {
+      handleSessionStart();
+    }
+
+    let contact = "";
+    try {
+      const storedProfile = window.localStorage.getItem("signsync.profile");
+      if (storedProfile) {
+        const parsedProfile = JSON.parse(storedProfile) as { emergencyContact?: string };
+        contact = parsedProfile.emergencyContact?.trim() || "";
+      }
+    } catch {
+      contact = "";
+    }
+
+    const target = contact || "112";
+    setSosMessage(`Camera session started and the app is trying to call ${target}.`);
+
+    try {
+      const link = `tel:${target}`;
+      const anchor = document.createElement("a");
+      anchor.href = link;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.setTimeout(() => {
+        window.location.assign(link);
+      }, 120);
+    } catch {
+      setSosMessage("Emergency assistance is not available in this browser context. Please call local emergency services directly.");
+    }
+  }, [handleSessionStart, sessionActive]);
 
   const metrics = buildMetrics(stats, sessionActive ? elapsedSeconds : 0);
 
@@ -159,6 +201,42 @@ export default function DashboardPage() {
             {metrics.map((metric, index) => (
               <StatusCard key={metric.id} metric={metric} index={index} />
             ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-signal-100 bg-white/80 p-4 shadow-card">
+            <div>
+              <p className="text-sm font-semibold text-ink-900">Need voice input?</p>
+              <p className="text-sm text-ink-500">Open the speech translator for live microphone capture and Telugu-friendly speech output.</p>
+            </div>
+            <Button variant="primary" onClick={() => navigate("/speech")} leftIcon={<Mic className="h-4 w-4" />}>
+              Open speech input
+            </Button>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-coral-200 bg-coral-50/80 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-coral-500/10 text-coral-600">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">SOS — Emergency assist</p>
+                  <p className="mt-1 text-sm text-ink-600">Need immediate help? Use this option to open emergency calling quickly.</p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                leftIcon={<Phone className="h-4 w-4" />}
+                onClick={handleSos}
+              >
+                Call emergency help
+              </Button>
+            </div>
+            {sosMessage && (
+              <p className="mt-3 text-sm font-medium text-coral-700">{sosMessage}</p>
+            )}
           </div>
 
           {/* Primary grid */}
@@ -194,28 +272,6 @@ export default function DashboardPage() {
                 featureVector={featureVector}
                 sessionActive={sessionActive}
               />
-
-              {/* Dev tools toggle */}
-              <div className="flex justify-center">
-                <button
-                  onClick={() => setShowDevTools((p) => !p)}
-                  className="text-xs text-ink-400 hover:text-ink-600 transition-colors underline underline-offset-2"
-                >
-                  {showDevTools ? "Hide developer tools" : "Show developer tools"}
-                </button>
-              </div>
-
-              {/* DatasetPanel — collapsed by default */}
-              {showDevTools && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <DatasetPanel featureVector={featureVector} sessionActive={sessionActive} />
-                </motion.div>
-              )}
             </div>
           </div>
         </motion.main>

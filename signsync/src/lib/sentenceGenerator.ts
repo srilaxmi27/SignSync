@@ -56,7 +56,7 @@ function getMergedMappings(): Record<string, SentenceResult> {
       category:    c.category,
       standardName: `Custom — ${c.label}`,
       sentence_te: c.sentence_te || c.sentence,
-      sentence_hi: c.sentence,   // Hindi not collected in AddGesturePanel — fallback to EN
+      sentence_hi: c.sentence_hi || c.sentence_te || c.sentence,
       isMapped:    true,
     };
   }

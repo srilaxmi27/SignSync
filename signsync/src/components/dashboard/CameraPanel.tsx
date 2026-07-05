@@ -19,7 +19,6 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import { SessionStatus } from "@/types";
 import { useMediaPipe } from "@/hooks/useMediaPipe";
 import { useLandmarkPipeline } from "@/hooks/useLandmarkPipeline";
-import DevPanel from "@/components/dashboard/DevPanel";
 import StandardSignLanguageCard from "@/components/dashboard/StandardSignLanguageCard";
 import type { SentenceResult } from "@/lib/sentenceGenerator";
 
@@ -107,7 +106,7 @@ export default function CameraPanel({
   } = useMediaPipe(videoRef, canvasRef);
 
   // ── Landmark pipeline (processor + feature generator) ────────────────────
-  const { stats: pipelineStats, featureVector } = useLandmarkPipeline(lastFrame);
+  const { featureVector } = useLandmarkPipeline(lastFrame);
 
   // Propagate latest feature vector to parent (for DatasetPanel)
   useEffect(() => {
@@ -347,19 +346,6 @@ export default function CameraPanel({
               </motion.div>
             )}
 
-            {isActive && !cameraError && (
-              <motion.div
-                key="active-overlay"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="pointer-events-none absolute inset-0"
-              >
-                {/* Corner brackets */}
-                <div className="absolute left-3 top-3 h-6 w-6 border-l-2 border-t-2 border-mint-400/60 rounded-tl" />
-                <div className="absolute right-3 top-3 h-6 w-6 border-r-2 border-t-2 border-mint-400/60 rounded-tr" />
-                <div className="absolute bottom-3 left-3 h-6 w-6 border-b-2 border-l-2 border-mint-400/60 rounded-bl" />
-                <div className="absolute bottom-3 right-3 h-6 w-6 border-b-2 border-r-2 border-mint-400/60 rounded-br" />
-              </motion.div>
-            )}
           </AnimatePresence>
 
           {/* Toolbar — top right */}
@@ -385,8 +371,6 @@ export default function CameraPanel({
             </div>
           )}
 
-          {/* Dev panel — landmark pipeline stats */}
-          <DevPanel enabled={isActive} stats={pipelineStats} fps={fps} />
         </div>
 
         {/* ── Controls ──────────────────────────────────────────────────── */}
